@@ -1,59 +1,249 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🍕 Foodpanda App — SSO with Keycloak
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel 12.x application integrated with **Keycloak Single Sign-On (SSO)**. Users authenticate via Keycloak — no local username/password login exists. If a user is already logged in to `ecommerce-app`, they are automatically authenticated here without re-entering credentials.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📐 How SSO Works
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+```
+[User already logged in to ecommerce-app]
+      │
+      └──► visits foodpanda-app
+                  │
+                  └──► redirected to Keycloak
+                              │
+                   (Keycloak sees active session)
+                   (NO password prompt)
+                              │
+                  ◄───────────┘
+           (redirected back logged in automatically)
+                  │
+           ──► /dashboard ✅
+```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Protocol:** OpenID Connect (OIDC) — Authorization Code Flow
+- **Token validation:** Local JWT validation (no Keycloak call per request)
+- **Single Logout:** Logging out here notifies all other apps via Keycloak backchannel
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 🛠 Prerequisites
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP `>= 8.3`
+- Composer `>= 2.x`
+- MySQL `>= 8.0`
+- [Keycloak SSO](https://github.com/funkyd3v/keycloak-sso) running on `http://localhost:8080`
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## 🚀 Getting Started
 
-### Premium Partners
+### 1. Clone the Repository
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+git clone https://github.com/funkyd3v/foodpanda-app.git
+cd foodpanda-app
+```
 
-## Contributing
+### 2. Install Dependencies
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+composer install
+```
 
-## Code of Conduct
+### 3. Create Environment File
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+cp .env.example .env
+```
 
-## Security Vulnerabilities
+### 4. Generate Application Key
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan key:generate
+```
 
-## License
+### 5. Configure `.env`
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Open `.env` and update the following:
+
+```env
+APP_NAME="Foodpanda App"
+APP_URL=http://localhost:8002
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=foodpanda_app
+DB_USERNAME=your_db_user
+DB_PASSWORD=your_db_password
+
+SESSION_DRIVER=database
+
+KEYCLOAK_CLIENT_ID=foodpanda-client
+KEYCLOAK_CLIENT_SECRET=your_client_secret_from_keycloak
+KEYCLOAK_REDIRECT_URI=http://localhost:8002/auth/callback
+KEYCLOAK_BASE_URL=http://localhost:8080
+KEYCLOAK_REALM=sso-realm
+```
+
+> 💡 Get `KEYCLOAK_CLIENT_SECRET` from Keycloak Admin Console → `sso-realm` → Clients → `foodpanda-client` → Credentials tab.
+
+### 6. Run Migrations
+
+```bash
+php artisan migrate
+```
+
+### 7. Start the Server
+
+```bash
+php artisan serve --port=8002
+```
+
+---
+
+## 🌐 Access
+
+| Page | URL |
+|---|---|
+| Welcome | http://localhost:8002 |
+| Login (redirects to Keycloak) | http://localhost:8002/login |
+| Dashboard (protected) | http://localhost:8002/dashboard |
+| Logout | POST http://localhost:8002/logout |
+
+---
+
+## 🔑 Authentication Flow
+
+This app uses **Keycloak as the only authentication method**. There is no local username/password login.
+
+1. Visit any protected route (e.g. `/dashboard`)
+2. Automatically redirected to `/login`
+3. `/login` immediately redirects to Keycloak login page
+4. If already logged in to another app → **auto-authenticated, no password needed** ✅
+5. If not logged in → enter credentials on Keycloak
+6. Keycloak redirects back to `/auth/callback`
+7. App creates or updates local user record
+8. Local session created — you're in ✅
+
+### User Provisioning
+
+On first login, a local user record is automatically created from Keycloak token claims:
+
+| Keycloak Claim | Local Field |
+|---|---|
+| `sub` | `keycloak_id` (primary SSO identifier) |
+| `email` | `email` |
+| `name` | `name` |
+| `email_verified` | `email_verified_at` |
+
+> The `sub` claim is the permanent, stable identifier. Email alone is never used as the primary SSO key.
+
+---
+
+## 🚪 Single Logout (SLO)
+
+When a user logs out:
+
+1. Local Laravel session is invalidated
+2. User is redirected to Keycloak's logout endpoint
+3. Keycloak destroys the central SSO session
+4. Keycloak sends a **backchannel logout POST** to all other connected apps
+5. All app sessions for this user are invalidated everywhere
+
+The backchannel logout endpoint is available at:
+```
+POST /auth/logout/backchannel
+```
+
+This endpoint is called **server-to-server by Keycloak** — not by the user's browser.
+
+---
+
+## 📁 Project Structure
+
+```
+app/
+├── Http/
+│   └── Controllers/
+│       └── Auth/
+│           └── KeycloakController.php   # Handles redirect, callback, logout
+├── Services/
+│   └── KeycloakUserService.php          # User provisioning logic
+├── Models/
+│   └── User.php
+config/
+├── services.php                          # Keycloak client config
+routes/
+├── web.php                               # Main routes
+├── auth.php                              # Auth-specific routes
+```
+
+---
+
+## ⚙️ Key Configuration
+
+**`config/services.php`**
+
+```php
+'keycloak' => [
+    'client_id'     => env('KEYCLOAK_CLIENT_ID'),
+    'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),
+    'redirect'      => env('KEYCLOAK_REDIRECT_URI'),
+    'base_url'      => env('KEYCLOAK_BASE_URL'),
+    'realm'         => env('KEYCLOAK_REALM'),
+],
+```
+
+---
+
+## 🔄 Useful Commands
+
+```bash
+# Clear all caches
+php artisan optimize:clear
+
+# Run migrations fresh
+php artisan migrate:fresh
+
+# Start server
+php artisan serve --port=8002
+```
+
+---
+
+## 🧪 Testing SSO
+
+To verify SSO is working correctly:
+
+1. Start Keycloak → `http://localhost:8080`
+2. Start ecommerce-app → `http://localhost:8001`
+3. Start foodpanda-app → `http://localhost:8002`
+4. Login to ecommerce-app via `http://localhost:8001/auth/redirect`
+5. Open `http://localhost:8002/auth/redirect` in the **same browser**
+6. You should be logged in automatically — no password prompt ✅
+
+To test Single Logout:
+
+1. While logged in to both apps, logout from ecommerce-app
+2. Try accessing `http://localhost:8002/dashboard`
+3. You should be redirected to login — session invalidated ✅
+
+---
+
+## 🔗 Related Repositories
+
+- [keycloak-sso](https://github.com/funkyd3v/keycloak-sso) — Keycloak Identity Provider (start this first)
+- [ecommerce-app](https://github.com/funkyd3v/ecommerce-app) — Sister app demonstrating SSO
+
+---
+
+## ⚠️ Important Notes
+
+- **Start Keycloak first** before running this app
+- **Session driver must be `database`** — file sessions don't survive in cloud deployments
+- This app has **no registration page** — all users are managed in Keycloak
+- Each app maintains its **own independent database and session** — nothing is shared
+- **Never share** `KEYCLOAK_CLIENT_SECRET` — keep it in `.env` only
